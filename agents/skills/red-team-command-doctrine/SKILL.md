@@ -1,7 +1,5 @@
 ﻿---
 name: red-team-command-doctrine
-description: Compact global red-team doctrine. Use when offensive phase selection, anti-drift, evidence discipline, OPSEC-aware routing, or final gate verification are needed.
----
 
 # Red Team Command Doctrine
 
