@@ -25,3 +25,5 @@
 感谢Nirvana提出的修改意见：优化工作流程，实现覆盖安装
 Nirvana X：@Nirvana_543
 
+感谢qiushi-skill、hack-skills与Anthropic-Cybersecurity-Skills提供的方法层、技术路由层与技能包结构参考。参考
+项目：qiushi-skill//yaklang/hack-skillsmukul975/Anthropic-Cybersecurity-Skills
