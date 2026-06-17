@@ -3,7 +3,19 @@
 All notable changes to **Codex Red Team Opt-In Mode** will be documented in this file.
 
 ---
+## [0.5.0] – 2026-06-14
 
+### Added
+- Dedicated routing layer (`codex/router/`) with regex-based router engine supporting Chinese + English pattern detection, pack selector, leaf selector, and method engine
+- Session patcher system (`codex/session_patcher/`) — two-tier refusal detector (strong phrases + weak sentence-openers in Chinese + English), JSONL session file cleaner with auto-backup, refusal-content replacement with optional AI-powered rewrite
+- Expanded test suite to 7 modules: `test_router`, `test_orchestrator`, `test_automation_tools`, `test_controller`, `test_install`, `test_modes`, `test_session_patcher`
+- Enhanced `scripts/validate.py` with per-subsystem file verification (router, orchestrator, automation, session_patcher)
+
+### Changed
+- Updated `config.toml`
+- Refined installer with managed manifest tracking, idempotent upgrades, stale legacy path cleanup, and `--uninstall` support
+- Tightened phase-to-method escalation mappings with per-domain defaults
+  
 ## [0.4.0] - 2026-05-18
 
 ### Changed
