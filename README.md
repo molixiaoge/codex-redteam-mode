@@ -1,100 +1,132 @@
 # Codex Red Team Opt-In Mode
 
-[English](./README.md) | [中文](./README_ZH.md)
+[中文说明](./README_ZH.md)
 
-> Defaults to normal; only enters red-team mode when explicitly enabled.
+> Normal by default. Red-team routing and automation are opt-in only.
 
-This is a lightweight, pack-first red team runtime/configuration layer for Codex.
+A lightweight, pack-first red team runtime/configuration layer for Codex. Ordinary coding, documentation, and research tasks stay in normal mode unless the user explicitly enables red-team mode.
 
-Its goal is not to turn Codex into an automated attack platform — it provides structured, layered routing for red team workflows while keeping normal operations unaffected.
+## Why This Project
 
-## Project Description
+Two common pitfalls in AI-assisted security work:
 
-- This repository is a **general GitHub repository**
-- It should not contain personal local paths, private target data, or user-specific tool preferences
+1. **Pollution of normal operations** — persistent red-team hints or system prompts bleed into everyday coding, causing refusals or unwanted behavior.
+2. **Context bloat** — heavy injection of offensive doctrine increases token cost without improving routing quality.
 
-## Why This Project?
-
-Many "persistent red team hints" ultimately lead to two bad outcomes:
-
-1. **Pollution of normal operations**
-2. **Overly heavy injection, leading to context bloat**
-
-This project does the opposite:
-
-- **Normal mode remains normal**
-- **Red team mode must be explicitly enabled**
-- **Hooks remain lightweight**
-- **Routes remain layered and restrained**
+This project solves both: **normal mode stays normal**, and red-team mode must be explicitly enabled. When enabled, it provides compact, testable routing through a `phase → router → pack → leaf` mainline — not a monolithic prompt dump.
 
 ## Core Features
 
-- Explicit opt-in for Red Team Mode
-- Three modes: `normal` / `redteam-light` / `redteam-full`
-- Structured JSON runtime state
-- Rule-first + semantic fallback phase detection
-- Session-isolated state file
-- Lightweight prompt overlay
-- Pack-first routing mainline:
-
-```text
-phase -> router -> pack -> leaf
-```
+- **Three explicit modes**: `normal` (default), `redteam-light` (targeted analysis/planning), `redteam-full` (constrained red team workflow)
+- **Structured JSON runtime state** with session-isolated state files
+- **Rule-first phase detection** with semantic fallback for ambiguous tasks
+- **Pack-first routing mainline**: `phase → router → pack → leaf` — method is a soft hint, not the primary routing axis
+- **Dedicated routing layer** — regex-based router engine (Chinese + English patterns), fine-grained sub-routers per domain (5 web, 4 AD, 6 crypto, 5 network, 3 mobile), external skill adapters (ACS/hackskills/qiushi)
+- **Lightweight hooks** — activation engine, context prepoison, intent engine, loop engine, phase detector, semantic fallback, state manager, refusal backstop
+- **Session patcher** — two-tier refusal detector (strong phrases + weak openers in Chinese + English), JSONL session cleaner with auto-backup and optional AI-powered rewrite
+- **Bounded loop decisions** for evidence-based next-step guidance
+- **Artifact/gate-based progression** — prove one path before expanding, distinguish facts from assumptions
+- **Automation planning** — reads local MCP/tool inventory, derives required capabilities, selects tools by priority
+- **Tool preference model**: prefer 5 practical tool classes (WebFetch, Browser MCP, IDA MCP, JADX MCP, Claude code+Codex), fall back to equivalent local tools when needed
+- **Managed incremental installer** — cross-platform (Python/PowerShell/bash), preserves existing AGENTS.md and hooks.json, injects only managed blocks, supports `--uninstall` and idempotent upgrades
 
 ## Coverage Scenarios
 
-**Core Phases:**
+### Core Phases
 
-- web
-- ad (Active Directory)
-- postex (Post-Exploitation)
-- reverse (Reverse Engineering)
-- code-audit
-- payload
-- evasion
+| Phase | Coverage |
+|-------|----------|
+| **Web** | Web exploitation, injection, SSRF, XSS, CSRF, deserialization |
+| **AD** | Active Directory enumeration, Kerberoasting, delegation, trusts |
+| **Post-Exploitation** | Persistence, lateral movement, privilege escalation, data exfiltration |
+| **Reverse Engineering** | Binary analysis, protocol reversing, firmware extraction |
+| **Code Audit** | Static analysis, vulnerability discovery, patch diffing |
+| **Payload** | Generation, encoding, obfuscation, staging |
+| **Evasion** | EDR/AV bypass, log tampering, indicator removal |
 
-**Extended Router/Pack Families:**
+### Extended Router/Pack Families
 
-- recon
-- api
-- auth
-- injection
-- file
-- business logic
-- cloud
-- container / kubernetes
-- network / protocol
-- crypto
-- mobile
+| Domain | Detail Pack |
+|--------|-------------|
+| **Recon** | OSINT, network discovery, service enumeration |
+| **API** | REST/GraphQL fuzzing, auth bypass, rate-limit evasion |
+| **Auth** | OAuth, JWT, SAML, Kerberos, NTLM attack surfaces |
+| **Injection** | SQL, LDAP, XPath, template, command injection variants |
+| **File** | Upload attacks, path traversal, LFI/RFI, file parsing bugs |
+| **Business Logic** | Workflow abuse, race conditions, privilege boundary violations |
+| **Cloud** | AWS/Azure/GCP IAM, serverless, storage, metadata services |
+| **Container / Kubernetes** | Escape, pod lateral movement, supply chain, misconfigured RBAC |
+| **Network / Protocol** | MITM, ARP/DNS poisoning, BGP hijack, protocol fuzzing |
+| **Crypto** | Weak cipher suites, padding oracles, nonce reuse, side channels |
+| **Mobile** | APK/IPA analysis, certificate pinning bypass, deep link abuse |
 
 ## Installation
 
-The installer uses **managed incremental installation**:
-
-- Preserves the user's original `AGENTS.md`
-- Preserves the user's original `hooks.json`
-- Injects only managed blocks from this repository
-- Cleans out old-version runtime remnants from this repository
-- Cleanly installs the current version
-- Writes to the install manifest
-- Auto-runs validation post-install
-
-### Python
+### Python (cross-platform)
 
 ```bash
 python scripts/install.py
 ```
 
-### Windows
+### Windows PowerShell
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
+powershell -ExecutionPolicy Bypass -File scripts/install.ps1
 ```
 
 ### macOS / Linux
 
 ```bash
-python3 scripts/install.py
+bash scripts/install.sh
+```
+
+### Options
+
+| Option | Description |
+|--------|-------------|
+| `--codex-home PATH` | Custom Codex home directory (default: `~/.codex`) |
+| `--agents-home PATH` | Custom agents directory (default: `~/.agents`) |
+| `--dry-run` | Preview all operations without writing any files |
+| `--uninstall` | Remove all managed files, hooks, and AGENTS.md blocks |
+
+```bash
+# Preview before install
+python scripts/install.py --dry-run
+
+# Custom install location
+python scripts/install.py --codex-home /opt/codex/home
+
+# Full uninstall
+python scripts/install.py --uninstall
+```
+
+### What the Installer Does
+
+1. **Upgrade cleanup** — reads the manifest from the previous install (`~/.codex/redteam-install-manifest.json`), removes all old tracked paths, plus known legacy remnants (`legacy-redteam-hook.py`, `red-team-command-doctrine-old`)
+2. **Core files** — copies `instruction.ctf.md` and `config.toml` to `~/.codex/`
+3. **Hooks** — deploys `session-start-context.py`, `hook-security-context-hook.py`, `redteam_state.py`, and `core/` to `~/.codex/hooks/`
+4. **Subsystems** — deploys `router/`, `orchestrator/`, `automation/`, and `session_patcher/` to `~/.codex/`
+5. **Skill packs** — deploys all 18 detail packs from `agents/skills/` to `~/.agents/skills/`
+6. **Seed prompts** — copies prompt files to `~/.codex/prompts/` (skips existing)
+7. **Merge hooks.json** — strips old managed hooks, then injects the current `SessionStart` and `UserPromptSubmit` hooks (preserves user-defined hooks)
+8. **Merge AGENTS.md** — injects or updates a managed block (`<!-- codex-redteam-optin-mode:start -->`) into `~/.codex/AGENTS.md` (preserves user content outside the block)
+9. **Write manifest** — records all managed paths to `~/.codex/redteam-install-manifest.json` for future upgrade/cleanup tracking
+10. **Validate** — runs `scripts/validate.py` to verify every subsystem file is in place
+
+### Upgrade & Idempotency
+
+The installer is **idempotent** — running it repeatedly is safe and will not duplicate hooks or AGENTS.md blocks.
+
+On each run, it reads the previous manifest, **deletes every file from the old version**, then re-deploys from the current version. This means:
+- Version upgrades are clean: no stale files linger between versions
+- `copy_tree` replaces entire directories (`router/`, `orchestrator/`, etc.) wholesale
+- `AGENTS.md` and `hooks.json` are never deleted — they use managed-block merge logic so user customizations survive
+- If the manifest is missing, the installer falls back to cleaning the current target set plus known legacy paths
+
+```bash
+# Safe to run repeatedly — same result each time
+python scripts/install.py
+python scripts/install.py   # second run: cleanup → fresh deploy → same state
 ```
 
 ## Quick Start
@@ -102,9 +134,8 @@ python3 scripts/install.py
 ### Enable Red Team Mode
 
 ```text
-Enter Red Team Mode
-Enable Red Team Mode
-
+进入红队模式
+开启红队模式
 /redteam on
 /redteam light
 /redteam full
@@ -114,83 +145,90 @@ enable red team mode
 ### Disable Red Team Mode
 
 ```text
-Exit Red Team Mode
-Disable Red Team Mode
-
+退出红队模式
+关闭红队模式
 /redteam off
 disable red team mode
 ```
 
-### Verify Installation
+### Mode Reference
 
-```bash
-python scripts/validate.py
-```
+| Mode | Default | Use Case |
+|------|---------|----------|
+| `normal` | Yes | Coding, documentation, general research |
+| `redteam-light` | No | Targeted security analysis, planning, review |
+| `redteam-full` | No | Constrained red team workflow, operations |
 
 ## Working Flow
 
-### Runtime Mainline
+When red-team mode is enabled, the runtime follows this mainline:
 
-The current actual routing mainline is:
-
-```text
-phase -> router -> pack -> leaf
+```
+phase → router → pack → leaf
 ```
 
-`method` still exists, but is only used as a soft tip when it is genuinely helpful — it is no longer the primary routing axis.
+1. **Phase detection** — rule-first matching against task intent; semantic fallback when ambiguous
+2. **Router** — maps phase to the appropriate detail pack family
+3. **Pack** — loads the compact, testable skill pack for the matched domain
+4. **Leaf** — executes the concrete skill or technique
 
-### Mode Description
+`method` is a **soft hint** — it may add value for technique selection but is not the primary routing axis.
 
-| Mode | Default | Typical Use |
-|---|---:|---|
-| `normal` | Yes | Coding, documentation, general research |
-| `redteam-light` | No | Targeted security analysis, planning, review |
-| `redteam-full` | No | More constrained red team workflow |
+Evidence-first reasoning is enforced throughout: prove one path before expanding, distinguish facts from assumptions, end with one concrete next step.
+
+## Automation Tool Policy
+
+Before planning tool use, the automation layer reads the user's local MCP/tool inventory, derives required capabilities, then selects tools in this order:
+
+1. **Prefer these 5 practical tool classes:**
+   - `WebFetch` — content fetch and page analysis
+   - `Browser MCP` — browser automation and engine-backed interaction
+   - `IDA MCP` — binary reverse engineering and protocol analysis
+   - `JADX MCP` — APK decompilation and API extraction
+   - `Claude code+Codex` — code generation and AI-assisted analysis
+2. If a preferred tool is unavailable, select an equivalent registered local MCP/tool.
+3. Record `preferred_tool`, `selected_tool`, `capability_match`, `risk`, and `fallback_reason`.
+4. Execute only through Tool Registry → Scope Gate → Executor.
 
 ## Validation
 
-The repository includes:
-
-- Installer checks
-- Routing tests
-- Mode switching tests
-- Orchestration gate checks
-- Prompt-chain checks
-
-Run with:
-
 ```bash
+# Full test suite
 python -m unittest discover -s tests -p "test_*.py"
+
+# Quick validation
 python scripts/validate.py
 ```
 
+Validation covers:
+- Installer integrity checks
+- Routing correctness across all phase/pack combinations
+- Mode switching (normal ↔ light ↔ full ↔ off)
+- Orchestration gate checks (scope, report, artifact)
+- Prompt-chain verification
+
 ## Known Limitations
 
-- This is the control/configuration layer, not a complete attack platform
-- The actual effect of the prompt overlay still depends on the target Codex environment
-- The user's local private prompt system may differ from the repository version
-- The actual execution depth still depends on your MCP / Tools
+- This is a **runtime/configuration layer**, not a complete attack platform — it provides routing, context management, and automation planning, not exploit code
+- Tool availability depends on the user's local MCP/tool inventory
+- Red-team mode must be explicitly enabled per session
+- Semantic phase detection is a fallback — rule-first matching is more reliable for well-defined task types
 
-## ⚠️ Disclaimer
+## Disclaimer
 
-**This project is intended solely for authorized penetration testing, red team research, and defensive security experiments.**
-
-- Use only on systems or environments where you have **explicit authorization**
-- Unauthorized use on third-party or production systems is **prohibited**
-- The authors and contributors **assume no responsibility** for misuse, legal consequences, service interruption, or data loss
-- By using this project, you agree to assume **all risks** and ensure that your actions comply with applicable laws and regulations
+This project is intended **solely for authorized penetration testing, red team research, and defensive security experiments**. Users must obtain proper authorization before testing any system they do not own. The authors disclaim all liability for unauthorized or illegal use.
 
 ## Contributions & Acknowledgements
 
 ### Individual Contributors
 
-- **Mingxi** (Mister Security Team) — suggested adding semantic judgment, removing methodology, and subdividing skills for smarter AI behavior during work phases. X: [@xishan12509850](https://x.com/xishan12509850)
-- **Nirvana** — suggested workflow optimization and overlay installation enablement. X: [@Nirvana_543](https://x.com/Nirvana_543)
-- **PINGS** — suggestions for enhancing jailbreak text
+- **Mingxi / 洺熙** — suggested adding semantic judgment as fallback for phase detection; proposed removing methodology while subdividing skills for smarter AI behavior
+- **Nirvana** — proposed workflow optimization with overlay installation enablement
+- **PINGS** — offered jailbreak text enhancements and robustness improvements
 
 ### Reference Projects
 
-Special thanks to the following projects for providing method layer, technology routing layer, and skill pack structure references:
+Method layer, routing layer, and skill pack structure draw inspiration from:
 
 - [qiushi-skill](https://github.com/qiushi-L/qiushi-skill)
 - [yaklang/hack-skills](https://github.com/yaklang/hack-skills)
@@ -198,8 +236,8 @@ Special thanks to the following projects for providing method layer, technology 
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for contribution guidelines.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
 
 ## License
 
-MIT, see [LICENSE](./LICENSE).
+[MIT](./LICENSE)

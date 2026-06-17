@@ -1,196 +1,234 @@
-# Codex Red Team Opt-In Mode
+# Codex 红队 Opt-In 模式
 
-[English](./README.md) | [中文](./README_ZH.md)
+[English](./README.md)
 
-> 默认保持 normal，只有显式开启时才进入 red-team。
+> 默认 normal 模式。红队路由和自动化能力必须显式开启。
 
-这是一个面向 Codex 的**轻量、pack-first** 红队运行时 / 配置层。
+一个轻量级、pack-first 的红队运行时/配置层，用于 Codex。普通编码、文档、研究任务默认保持 normal 模式；只有用户明确触发红队模式后，才启用红队路由、Loop 决策和自动化规划。
 
-它的目标不是把 Codex 变成自动化攻击平台——而是为红队工作流提供结构化、分层路由，同时保持正常操作不受影响。
+## 项目初衷
 
-## 项目说明
+AI 辅助安全工作中有两个常见陷阱：
 
-- 这个仓库是 **GitHub 通用版**
-- 不应包含个人本地路径、私有目标数据或用户专属工具偏好
+1. **污染正常操作** — 持续存在的红队提示或系统指令渗透到日常编码中，导致不必要的拒绝或异常行为。
+2. **上下文膨胀** — 大量注入攻击方法论增加了 token 消耗，却没有真正提升路由质量。
 
-## 为什么做这个项目？
-
-很多"常驻红队提示词"最后都会变成两种坏结果：
-
-1. **污染普通工作**
-2. **注入过重，导致上下文膨胀**
-
-这个项目反过来做：
-
-- **普通模式保持普通**
-- **红队模式必须显式开启**
-- **hooks 保持轻量**
-- **路由保持分层与克制**
+本项目的解决方式：**normal 模式保持纯净**，红队模式必须显式开启。开启后，通过 `phase → router → pack → leaf` 主线提供紧凑、可测试的路由——而不是一次性倾泻大量提示。
 
 ## 核心特性
 
-- 显式 opt-in 红队模式
-- 三种模式：`normal` / `redteam-light` / `redteam-full`
-- 结构化 JSON 运行时状态
-- 规则优先 + 语义兜底的 phase 检测
-- session 隔离状态文件
-- 轻量 prompt overlay
-- pack-first 路由主线：
-
-```text
-phase -> router -> pack -> leaf
-```
+- **三种显式模式**：`normal`（默认）、`redteam-light`（定向分析/规划）、`redteam-full`（受限的红队工作流）
+- **结构化 JSON 运行状态**，session 隔离的状态文件
+- **规则优先的 phase 检测**，语义判断作为模糊任务的 fallback
+- **Pack-first 路由主线**：`phase → router → pack → leaf` — method 仅作为软提示，不是主路由轴
+- **专用路由层** — 基于正则的路由引擎（中英文模式匹配），按领域细分的子路由器（5 个 Web、4 个 AD、6 个 Crypto、5 个 Network、3 个 Mobile），外部技能适配器（ACS/hackskills/qiushi）
+- **轻量 hooks** — 激活引擎、上下文预处理、意图引擎、循环引擎、phase 检测、语义 fallback、状态管理、拒答回退
+- **Session 修补器** — 两级拒答检测（强短语 + 弱开头词，中英文双语文），JSONL session 文件清理，自动备份，可选 AI 改写回退
+- **有界 Loop 决策** — 基于证据的下一步推进，证明一条路径后再扩展
+- **Artifact/gate 证据推进机制** — 区分事实与假设，以证据链驱动执行连续性
+- **自动化规划层** — 读取本地 MCP/工具清单，推导所需能力，按优先级选择工具
+- **工具优先级模型**：优先 5 类实战工具（WebFetch、Browser MCP、IDA MCP、JADX MCP、Claude code+Codex），缺失时回退到同等能力的本地工具
+- **增量安装器** — 跨平台（Python/PowerShell/bash），保留已有 AGENTS.md 和 hooks.json，仅注入受管控块，支持 `--uninstall` 和幂等升级
 
 ## 覆盖场景
 
-**核心 Phase：**
+### 核心 Phase
 
-- web
-- ad（Active Directory）
-- postex（后渗透）
-- reverse（逆向工程）
-- code-audit（代码审计）
-- payload（载荷）
-- evasion（免杀规避）
+| Phase | 覆盖范围 |
+|-------|----------|
+| **Web** | Web 漏洞利用、注入、SSRF、XSS、CSRF、反序列化 |
+| **AD** | Active Directory 枚举、Kerberoasting、委派、域信任 |
+| **Post-Exploitation** | 持久化、横向移动、提权、数据窃取 |
+| **Reverse Engineering** | 二进制分析、协议逆向、固件提取 |
+| **Code Audit** | 静态分析、漏洞发现、补丁对比 |
+| **Payload** | 生成、编码、混淆、分级投递 |
+| **Evasion** | EDR/AV 绕过、日志篡改、指标清除 |
 
-**扩展 Router / Pack 家族：**
+### 扩展 Router/Pack 系列
 
-- recon（侦察）
-- api
-- auth（认证）
-- injection（注入）
-- file（文件）
-- business logic（业务逻辑）
-- cloud（云）
-- container / kubernetes（容器）
-- network / protocol（网络/协议）
-- crypto（密码学）
-- mobile（移动端）
+| 领域 | 详细 Pack |
+|------|-----------|
+| **Recon** | OSINT、网络发现、服务枚举 |
+| **API** | REST/GraphQL Fuzz、认证绕过、限速规避 |
+| **Auth** | OAuth、JWT、SAML、Kerberos、NTLM 攻击面 |
+| **Injection** | SQL、LDAP、XPath、模板、命令注入变体 |
+| **File** | 上传攻击、路径穿越、LFI/RFI、文件解析漏洞 |
+| **Business Logic** | 工作流滥用、竞态条件、权限边界违规 |
+| **Cloud** | AWS/Azure/GCP IAM、Serverless、存储、元数据服务 |
+| **Container / Kubernetes** | 容器逃逸、Pod 横向移动、供应链、RBAC 配置错误 |
+| **Network / Protocol** | MITM、ARP/DNS 投毒、BGP 劫持、协议 Fuzz |
+| **Crypto** | 弱密码套件、Padding Oracle、Nonce 重用、侧信道 |
+| **Mobile** | APK/IPA 分析、证书固定绕过、Deep Link 滥用 |
 
 ## 安装
 
-安装器采用**托管式增量安装**：
-
-- 保留用户原有 `AGENTS.md`
-- 保留用户原有 `hooks.json`
-- 只注入本仓库的托管区块
-- 删除本仓库旧版本 runtime 残留
-- 干净安装当前版本
-- 写入 install manifest
-- 安装后自动执行 validate
-
-### Python
+### Python（跨平台）
 
 ```bash
 python scripts/install.py
 ```
 
-### Windows
+### Windows PowerShell
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
+powershell -ExecutionPolicy Bypass -File scripts/install.ps1
 ```
 
 ### macOS / Linux
 
 ```bash
-python3 scripts/install.py
+bash scripts/install.sh
+```
+
+### 选项
+
+| 参数 | 说明 |
+|------|------|
+| `--codex-home PATH` | 自定义 Codex 主目录（默认：`~/.codex`） |
+| `--agents-home PATH` | 自定义 agents 目录（默认：`~/.agents`） |
+| `--dry-run` | 预览模式，打印所有操作但不实际写入 |
+| `--uninstall` | 卸载，移除所有托管文件、hooks 和 AGENTS.md 块 |
+
+```bash
+# 预览安装（不写入）
+python scripts/install.py --dry-run
+
+# 安装到自定义位置
+python scripts/install.py --codex-home /opt/codex/home
+
+# 完整卸载
+python scripts/install.py --uninstall
+```
+
+### 安装器做了什么
+
+1. **升级清理** — 读取上次安装的 manifest（`~/.codex/redteam-install-manifest.json`），移除所有旧版本托管路径，外加已知历史残留（`legacy-redteam-hook.py`、`red-team-command-doctrine-old`）
+2. **核心文件** — 复制 `instruction.ctf.md` 和 `config.toml` 到 `~/.codex/`
+3. **Hooks** — 部署 `session-start-context.py`、`hook-security-context-hook.py`、`redteam_state.py`、`core/` 到 `~/.codex/hooks/`
+4. **子系统** — 部署 `router/`、`orchestrator/`、`automation/`、`session_patcher/` 到 `~/.codex/`
+5. **技能包** — 部署全部 18 个 detail packs 从 `agents/skills/` 到 `~/.agents/skills/`
+6. **Seed prompts** — 复制 prompt 文件到 `~/.codex/prompts/`（已有文件跳过不覆盖）
+7. **合并 hooks.json** — 清除旧的托管 hooks，注入当前版本的 `SessionStart` 和 `UserPromptSubmit` hooks（保留用户自定义 hooks）
+8. **合并 AGENTS.md** — 在 `~/.codex/AGENTS.md` 中注入或更新托管块（`<!-- codex-redteam-optin-mode:start -->`），块外用户内容不受影响
+9. **写 manifest** — 将所有托管路径记录到 `~/.codex/redteam-install-manifest.json`，供后续升级/卸载追踪
+10. **验证** — 运行 `scripts/validate.py` 逐项检查各子系统文件是否就位
+
+### 升级与幂等性
+
+安装器是**幂等**的——多次运行不会重复注入 hooks 或 AGENTS.md 块。
+
+每次运行时，先读取旧版本 manifest，**删除旧版本遗留的每一个文件**，再从当前版本重新部署。这意味着：
+- 版本升级干净彻底：不会在版本间残留过期文件
+- `copy_tree` 整目录替换（`router/`、`orchestrator/` 等），不留旧内容
+- `AGENTS.md` 和 `hooks.json` 从不直接删除——使用托管块合并逻辑，用户自定义内容不受影响
+- 如果 manifest 丢失，安装器回退到清理当前目标集合 + 已知历史残留路径
+
+```bash
+# 重复执行安全——每次结果一致
+python scripts/install.py
+python scripts/install.py   # 第二次运行：清理 → 重新部署 → 同样的状态
 ```
 
 ## 快速开始
 
-### 开启 Red Team Mode
+### 开启红队模式
 
 ```text
 进入红队模式
 开启红队模式
-
 /redteam on
 /redteam light
 /redteam full
 enable red team mode
 ```
 
-### 关闭 Red Team Mode
+### 关闭红队模式
 
 ```text
 退出红队模式
 关闭红队模式
-
 /redteam off
 disable red team mode
 ```
 
-### 验证安装
-
-```bash
-python scripts/validate.py
-```
-
-## 工作方式
-
-### 运行时主线
-
-当前实际路由主线是：
-
-```text
-phase -> router -> pack -> leaf
-```
-
-`method` 仍然存在，但只在确实有帮助时作为软提示使用，不再是主路由轴。
-
 ### 模式说明
 
-| 模式 | 默认 | 典型用途 |
-|---|---:|---|
-| `normal` | 是 | 编码、文档、普通研究 |
-| `redteam-light` | 否 | 定向安全分析、规划、复核 |
-| `redteam-full` | 否 | 更强约束的红队工作流 |
+| 模式 | 默认 | 适用场景 |
+|------|------|----------|
+| `normal` | 是 | 编码、文档、通用研究 |
+| `redteam-light` | 否 | 定向安全分析、规划、审查 |
+| `redteam-full` | 否 | 受限的红队工作流、实战操作 |
+
+## 工作流程
+
+红队模式开启后，运行时按以下主线工作：
+
+```
+phase → router → pack → leaf
+```
+
+1. **Phase 检测** — 规则优先匹配任务意图；模糊任务由语义判断兜底
+2. **Router** — 将 phase 映射到对应的 detail pack 系列
+3. **Pack** — 加载匹配领域的紧凑、可测试的技能包
+4. **Leaf** — 执行具体技能或技术
+
+`method` 仅作为**软提示**——可能在技术选择时提供参考，但不是主路由轴。
+
+全程贯彻证据优先推理：证明一条路径后再扩展，区分事实与假设，以一条具体的下一步结束。
+
+## 自动化工具策略
+
+自动化层不会把工具写死为唯一工具池。每次规划工具调用前，先读取用户本地可用 MCP/工具清单，再根据当前任务推导所需能力：
+
+1. **优先使用 5 类实战工具能力：**
+   - `WebFetch` — 内容获取、页面分析
+   - `Browser MCP` — 浏览器自动化、真实交互、页面引擎
+   - `IDA MCP` — 二进制逆向、协议分析
+   - `JADX MCP` — APK 反编译、API 提取
+   - `Claude code+Codex` — 代码生成、AI 辅助分析
+2. 如果首选工具不存在，则查找本地同等能力 MCP/工具替代。
+3. 在计划或运行日志中记录 `preferred_tool`、`selected_tool`、`capability_match`、`risk`、`fallback_reason`。
+4. 实际执行必须经过 Tool Registry → Scope Gate → Executor，不能让模型自由拼 shell 绕过工具层。
 
 ## 验证
 
-仓库内置了：
-
-- installer 检查
-- routing 测试
-- mode 切换测试
-- orchestration gate 检查
-- prompt-chain 检查
-
-运行：
-
 ```bash
+# 完整测试套件
 python -m unittest discover -s tests -p "test_*.py"
+
+# 快速验证
 python scripts/validate.py
 ```
 
-## 已知限制
+验证覆盖：
+- 安装器完整性检查
+- 所有 phase/pack 组合的路由正确性
+- 模式切换（normal ↔ light ↔ full ↔ off）
+- 编排 gate 检查（scope、report、artifact）
+- Prompt-chain 验证
 
-- 这是控制层 / 配置层，不是完整攻击平台
-- prompt overlay 的实际效果仍依赖目标 Codex 环境
-- 用户本地私人 prompt 体系可能与仓库版不同
-- 实际执行深度仍依赖你的 MCP / 工具面
+## 已知局限
 
-## ⚠️ 免责声明
+- 这是一个**运行时/配置层**，不是完整的攻击平台——提供路由、上下文管理和自动化规划，不提供现成 exploit 代码
+- 工具可用性取决于用户本地的 MCP/工具清单
+- 红队模式需要每 session 显式开启
+- 语义 phase 检测是 fallback——对定义明确的任务类型，规则匹配更可靠
 
-**本项目仅供授权渗透测试（Authorized Penetration Testing）、红队研究与防御性安全实验使用。**
+## 免责声明
 
-- 仅限在你拥有**明确授权**的系统或环境中使用
-- 未经授权用于第三方或生产系统属于**禁止行为**
-- 作者及贡献者对误用、法律后果、服务中断或数据损失**不承担任何责任**
-- 使用本项目即表示你同意**自行承担全部风险**，并确保行为符合适用法律和法规
+本项目**仅用于授权的渗透测试、红队研究和防御性安全实验**。用户在对任何非自有系统进行测试前，必须获得适当授权。作者对未经授权或非法使用不承担任何责任。
 
 ## 贡献与致谢
 
 ### 个人贡献者
 
-- **洺熙**（米斯特安全团队）— 提出加入语义判定，取消方法论，细分 skill，让 AI 在工作阶段更智能。X: [@xishan12509850](https://x.com/xishan12509850)
-- **Nirvana** — 提出优化工作流程，实现覆盖安装。X: [@Nirvana_543](https://x.com/Nirvana_543)
-- **PINGS** — 提出强化越狱文本的建议
+- **Mingxi / 洺熙** — 建议添加语义判断作为 phase 检测 fallback；提议去除 methodology 层并细分 skills 以提升 AI 行为智能度
+- **Nirvana** — 提出工作流优化方案及 overlay 安装启用
+- **PINGS** — 提供 jailbreak 文本增强与鲁棒性改进
 
 ### 参考项目
 
-特别感谢以下项目提供的方法层、技术路由层与 skill pack 结构参考：
+方法层、路由层和 skill pack 结构借鉴自：
 
 - [qiushi-skill](https://github.com/qiushi-L/qiushi-skill)
 - [yaklang/hack-skills](https://github.com/yaklang/hack-skills)
@@ -198,8 +236,8 @@ python scripts/validate.py
 
 ## 贡献
 
-见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ## 许可证
 
-MIT，见 [LICENSE](./LICENSE)。
+[MIT](./LICENSE)
