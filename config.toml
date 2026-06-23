@@ -12,6 +12,7 @@ tool_priority = [
   "Browser MCP",
   "IDA MCP",
   "JADX MCP",
+  "Current AI Agent",
 ]
 mcp_inventory_files = []
 require_scope_for_network = true

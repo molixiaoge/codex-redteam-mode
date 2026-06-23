@@ -24,10 +24,10 @@ AI 辅助安全工作中有两个常见陷阱：
 - **专用路由层** — 基于正则的路由引擎（中英文模式匹配），按领域细分的子路由器（5 个 Web、4 个 AD、6 个 Crypto、5 个 Network、3 个 Mobile），外部技能适配器（ACS/hackskills/qiushi）
 - **轻量 hooks** — 激活引擎、上下文预处理、意图引擎、循环引擎、phase 检测、语义 fallback、状态管理、拒答回退
 - **Session 修补器** — 两级拒答检测（强短语 + 弱开头词，中英文双语文），JSONL session 文件清理，自动备份，可选 AI 改写回退
-- **有界 Loop 决策** — 基于证据的下一步推进，证明一条路径后再扩展
+- **有界 Loop Runtime** — 每次决策都包含触发器、反馈门和退出条件，用于根据证据调整节奏
 - **Artifact/gate 证据推进机制** — 区分事实与假设，以证据链驱动执行连续性
-- **自动化规划层** — 读取本地 MCP/工具清单，推导所需能力，按优先级选择工具
-- **工具优先级模型**：优先 5 类实战工具（WebFetch、Browser MCP、IDA MCP、JADX MCP、Claude code+Codex），缺失时回退到同等能力的本地工具
+- **自动化 Loop Runtime** — 读取本地 MCP/工具清单，推导所需能力，执行 scoped registered adapter，保存 artifact，并回灌 gate 判定
+- **工具优先级模型**：优先 5 类实战工具（WebFetch、Browser MCP、IDA MCP、JADX MCP、当前使用的 AI），缺失时回退到同等能力的本地工具
 - **增量安装器** — 跨平台（Python/PowerShell/bash），保留已有 AGENTS.md 和 hooks.json，仅注入受管控块，支持 `--uninstall` 和幂等升级
 
 ## 覆盖场景
@@ -176,6 +176,16 @@ phase → router → pack → leaf
 
 全程贯彻证据优先推理：证明一条路径后再扩展，区分事实与假设，以一条具体的下一步结束。
 
+## Loop Runtime
+
+Loop Runtime 按 `Observe -> Decide -> Act -> Verify -> Record -> Next` 运转。每次 loop 决策都必须包含：
+
+- `trigger`：为什么启动当前闭环或改变方向
+- `feedback_gate`：用哪个反馈门判断当前步骤是否有效
+- `exit_condition`：什么条件下推进、换路、阻塞、报告或刷新上下文
+
+当前实现包含 decision tree 路径选择、节奏分类、artifact/tool/scope gates、失败重试、quick card 刷新、JSONL decision log，以及 executor adapter 层。默认 executor 保持 plan-only；注册 scoped adapter 后，可以自动执行工具步骤、保存 artifact，并把结果送回下一轮 gate 判定。真实工具执行必须通过 Tool Registry、Scope Gate 和 Executor adapter。
+
 ## 自动化工具策略
 
 自动化层不会把工具写死为唯一工具池。每次规划工具调用前，先读取用户本地可用 MCP/工具清单，再根据当前任务推导所需能力：
@@ -185,10 +195,12 @@ phase → router → pack → leaf
    - `Browser MCP` — 浏览器自动化、真实交互、页面引擎
    - `IDA MCP` — 二进制逆向、协议分析
    - `JADX MCP` — APK 反编译、API 提取
-   - `Claude code+Codex` — 代码生成、AI 辅助分析
+   - `Current AI Agent` — 使用用户当前运行的 AI agent 进行代码生成和 AI 辅助分析
 2. 如果首选工具不存在，则查找本地同等能力 MCP/工具替代。
 3. 在计划或运行日志中记录 `preferred_tool`、`selected_tool`、`capability_match`、`risk`、`fallback_reason`。
 4. 实际执行必须经过 Tool Registry → Scope Gate → Executor，不能让模型自由拼 shell 绕过工具层。
+5. 默认 executor 保持 plan-only，只有接入明确 scoped adapter 并通过 gate 后才进入实际执行。
+6. adapter 成功输出必须保存为 artifact，并重新通过 gate 后才能推进。
 
 ## 验证
 
@@ -204,13 +216,15 @@ python scripts/validate.py
 - 安装器完整性检查
 - 所有 phase/pack 组合的路由正确性
 - 模式切换（normal ↔ light ↔ full ↔ off）
+- Loop runtime 检查：decision tree、scope gate、adapter 执行、retry、artifact 保存、report gate
 - 编排 gate 检查（scope、report、artifact）
 - Prompt-chain 验证
 
 ## 已知局限
 
-- 这是一个**运行时/配置层**，不是完整的攻击平台——提供路由、上下文管理和自动化规划，不提供现成 exploit 代码
+- 这是一个**运行时/配置层**，不是完整的攻击平台——提供路由、上下文管理、adapter-based 自动化和证据 gate，不提供硬编码 exploit 代码
 - 工具可用性取决于用户本地的 MCP/工具清单
+- 真实执行需要显式注册 scoped adapter；默认 executor 保持 plan-only
 - 红队模式需要每 session 显式开启
 - 语义 phase 检测是 fallback——对定义明确的任务类型，规则匹配更可靠
 

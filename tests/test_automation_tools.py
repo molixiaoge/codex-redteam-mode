@@ -44,6 +44,7 @@ class AutomationToolTests(unittest.TestCase):
             self.assertEqual(selected["browser_automation"].fallback_reason, "preferred_tool_unavailable")
             self.assertEqual(selected["binary_reverse"].selected_tool, "radare2-mcp")
             self.assertEqual(selected["code_generation"].selected_tool, "codex")
+            self.assertEqual(selected["code_generation"].preferred_tool, "Current AI Agent")
 
     def test_registry_rejects_unregistered_tools_and_records_selection_reason(self):
         registry = ToolRegistry()
@@ -190,6 +191,21 @@ class AutomationToolTests(unittest.TestCase):
         self.assertFalse(decision.allowed)
         self.assertEqual(decision.reason, "missing_target")
 
+    def test_scope_gate_requires_declared_scope_for_scoped_targets(self):
+        registry = ToolRegistry()
+        registry.register_selected(
+            capability="page_fetch",
+            preferred_tool="WebFetch",
+            selected_tool="WebFetch",
+            risk="passive",
+            fallback_reason="preferred_tool_available",
+        )
+
+        decision = ScopeGate(Scope()).check_tool("WebFetch", {"target": "https://example.com"}, registry)
+
+        self.assertFalse(decision.allowed)
+        self.assertEqual(decision.reason, "missing_scope")
+
     def test_artifact_store_writes_jsonl_and_report_gate_requires_core_evidence(self):
         with tempfile.TemporaryDirectory() as td:
             store = ArtifactStore(Path(td))
@@ -223,6 +239,29 @@ class AutomationToolTests(unittest.TestCase):
 
         reverse = ReportGate().check(("ida_function_notes", "local_harness"))
         self.assertTrue(reverse.passed)
+
+    def test_report_gate_strict_mode_requires_all_seven_gates(self):
+        decision = ReportGate(strict=True).check(("webfetch_summary", "generated_code", "scope_proof"))
+        self.assertFalse(decision.passed)
+        self.assertIn("impact_proof", decision.missing)
+        self.assertIn("multi_id_or_parameter_check", decision.missing)
+        self.assertIn("false_positive_exclusion", decision.missing)
+        self.assertIn("parameter_portability", decision.missing)
+        self.assertIn("cia_impact", decision.missing)
+
+        passed = ReportGate(strict=True).check(
+            (
+                "webfetch_summary",
+                "generated_code",
+                "impact_proof",
+                "multi_id_check",
+                "scope_proof",
+                "false_positive_exclusion",
+                "parameter_portability",
+                "cia_impact",
+            )
+        )
+        self.assertTrue(passed.passed)
 
 
 if __name__ == "__main__":

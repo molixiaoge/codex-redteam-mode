@@ -2,7 +2,7 @@ from __future__ import annotations
 import argparse, copy, json, os, platform, re, shutil, subprocess, sys
 from datetime import datetime
 from pathlib import Path
-APP_NAME='codex-redteam-optin-mode'; APP_VERSION='0.4.0'
+APP_NAME='codex-redteam-optin-mode'; APP_VERSION='0.6.0'
 AGENTS_BLOCK_START='<!-- codex-redteam-optin-mode:start -->'; AGENTS_BLOCK_END='<!-- codex-redteam-optin-mode:end -->'
 SESSION_STATUS='Loading session mode context'; PROMPT_STATUS='Checking mode-gated offensive routing'
 def color(text:str,code:str)->str: return text if os.environ.get('NO_COLOR') else f'\033[{code}m{text}\033[0m'
@@ -34,9 +34,9 @@ def seed_prompt_files(repo_root:Path,codex_home:Path,dry_run:bool)->None:
         if dry_run: continue
         dst.parent.mkdir(parents=True, exist_ok=True); shutil.copy2(src,dst)
 def build_hooks_payload(repo_root:Path,codex_home:Path)->dict:
-    src=repo_root/'templates'/'hooks.json.template'; python_cmd='python' if os.name=='nt' else 'python3'; script_dir=str(codex_home/'hooks')
-    if os.name=='nt': script_dir=script_dir.replace('\\','\\\\')
-    return json.loads(src.read_text(encoding='utf-8').replace('{{PYTHON_CMD}}', python_cmd).replace('{{CODEX_HOOKS_DIR}}', script_dir))
+    src=repo_root/'templates'/'hooks.json.template'; python_cmd=sys.executable; script_dir=str(codex_home/'hooks')
+    python_cmd_json=json.dumps(python_cmd)[1:-1]; script_dir_json=json.dumps(script_dir)[1:-1]
+    return json.loads(src.read_text(encoding='utf-8').replace('{{PYTHON_CMD}}', python_cmd_json).replace('{{CODEX_HOOKS_DIR}}', script_dir_json))
 def managed_agents_block(repo_root:Path)->str:
     body=(repo_root/'codex'/'AGENTS.md').read_text(encoding='utf-8').strip()
     return f'{AGENTS_BLOCK_START}\n{body}\n{AGENTS_BLOCK_END}\n'

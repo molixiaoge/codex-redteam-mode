@@ -88,6 +88,25 @@ class IntentTests(unittest.TestCase):
         self.assertEqual(parse_mode_command('关闭红队模式'), 'normal')
         self.assertEqual(parse_mode_command('退出红队模式'), 'normal')
 
+    def test_extract_prompt_ignores_explicit_non_user_messages(self):
+        from hooks.core.prompt_parser import extract_prompt
+
+        payload = {
+            'messages': [
+                {'role': 'assistant', 'content': '/redteam on'},
+                {'role': 'system', 'content': 'system prompt'},
+            ],
+        }
+
+        self.assertEqual(extract_prompt(payload), '')
+
+    def test_extract_prompt_keeps_legacy_roleless_messages(self):
+        from hooks.core.prompt_parser import extract_prompt
+
+        payload = {'messages': [{'content': 'legacy prompt'}]}
+
+        self.assertEqual(extract_prompt(payload), 'legacy prompt')
+
     def test_process_turn_includes_automation_tool_selection_summary(self):
         from hooks.core.controller import process_turn
         import tempfile
@@ -300,6 +319,25 @@ class ControllerTests(unittest.TestCase):
         )
         self.assertEqual(result.state.phase, 'web')
         self.assertEqual(result.state.workflow_phase, 'strategy')
+
+    def test_process_turn_does_not_keep_previous_phase_for_summarize_intent(self):
+        from hooks.core.controller import process_turn
+        state = default_state('controller-summary-phase-reset')
+        state.mode = 'redteam-full'
+        state.phase = 'mobile'
+        state.workflow_phase = 'strategy'
+        state.objective = 'analyze Android APK login flow'
+
+        result = process_turn(
+            prompt='New objective: summarize current findings and prepare a neutral status note',
+            state=state,
+            codex_dir=ROOT / 'codex',
+            assistant_summary='',
+        )
+
+        self.assertEqual(result.state.intent_type, 'summarize')
+        self.assertEqual(result.state.phase, 'general')
+        self.assertNotEqual(result.state.router, 'android-pentesting-tricks')
 
     def test_process_turn_does_not_stick_to_previous_phase_when_rule_based_postex_matches(self):
         from hooks.core.controller import process_turn

@@ -24,10 +24,10 @@ This project solves both: **normal mode stays normal**, and red-team mode must b
 - **Dedicated routing layer** — regex-based router engine (Chinese + English patterns), fine-grained sub-routers per domain (5 web, 4 AD, 6 crypto, 5 network, 3 mobile), external skill adapters (ACS/hackskills/qiushi)
 - **Lightweight hooks** — activation engine, context prepoison, intent engine, loop engine, phase detector, semantic fallback, state manager, refusal backstop
 - **Session patcher** — two-tier refusal detector (strong phrases + weak openers in Chinese + English), JSONL session cleaner with auto-backup and optional AI-powered rewrite
-- **Bounded loop decisions** for evidence-based next-step guidance
+- **Bounded Loop Runtime** — each decision exposes a trigger, feedback gate, and exit condition so the agent can adjust pace before advancing
 - **Artifact/gate-based progression** — prove one path before expanding, distinguish facts from assumptions
-- **Automation planning** — reads local MCP/tool inventory, derives required capabilities, selects tools by priority
-- **Tool preference model**: prefer 5 practical tool classes (WebFetch, Browser MCP, IDA MCP, JADX MCP, Claude code+Codex), fall back to equivalent local tools when needed
+- **Automation Loop Runtime** — reads local MCP/tool inventory, derives required capabilities, runs scoped registered adapters, saves artifacts, and feeds gate decisions
+- **Tool preference model**: prefer 5 practical tool classes (WebFetch, Browser MCP, IDA MCP, JADX MCP, Current AI Agent), fall back to equivalent local tools when needed
 - **Managed incremental installer** — cross-platform (Python/PowerShell/bash), preserves existing AGENTS.md and hooks.json, injects only managed blocks, supports `--uninstall` and idempotent upgrades
 
 ## Coverage Scenarios
@@ -176,6 +176,16 @@ phase → router → pack → leaf
 
 Evidence-first reasoning is enforced throughout: prove one path before expanding, distinguish facts from assumptions, end with one concrete next step.
 
+## Loop Runtime
+
+The Loop Runtime follows `Observe -> Decide -> Act -> Verify -> Record -> Next`. Every loop decision carries:
+
+- `trigger`: why this loop started or changed direction
+- `feedback_gate`: the gate used to judge whether the current step is valid
+- `exit_condition`: the condition for advancing, pivoting, blocking, reporting, or refreshing context
+
+The runtime now includes decision-tree path selection, rhythm classification, artifact/tool/scope gates, retry handling, quick-card refreshes, JSONL decision recording, and an executor adapter layer. The default executor stays plan-only, but registered adapters can execute scoped tool steps, save artifacts, and feed the next gate decision. Direct tool execution is intentionally bounded behind Tool Registry, Scope Gate, and Executor adapters.
+
 ## Automation Tool Policy
 
 Before planning tool use, the automation layer reads the user's local MCP/tool inventory, derives required capabilities, then selects tools in this order:
@@ -185,10 +195,12 @@ Before planning tool use, the automation layer reads the user's local MCP/tool i
    - `Browser MCP` — browser automation and engine-backed interaction
    - `IDA MCP` — binary reverse engineering and protocol analysis
    - `JADX MCP` — APK decompilation and API extraction
-   - `Claude code+Codex` — code generation and AI-assisted analysis
+   - `Current AI Agent` — code generation and AI-assisted analysis using the AI agent the user is currently running
 2. If a preferred tool is unavailable, select an equivalent registered local MCP/tool.
 3. Record `preferred_tool`, `selected_tool`, `capability_match`, `risk`, and `fallback_reason`.
 4. Execute only through Tool Registry → Scope Gate → Executor.
+5. Keep execution plan-only unless a scoped adapter is explicitly wired and passes gates.
+6. Save successful adapter output as artifacts and re-check gates before advancing.
 
 ## Validation
 
@@ -204,13 +216,15 @@ Validation covers:
 - Installer integrity checks
 - Routing correctness across all phase/pack combinations
 - Mode switching (normal ↔ light ↔ full ↔ off)
+- Loop runtime checks (decision tree, scope gate, adapter execution, retry, artifact saving, report gate)
 - Orchestration gate checks (scope, report, artifact)
 - Prompt-chain verification
 
 ## Known Limitations
 
-- This is a **runtime/configuration layer**, not a complete attack platform — it provides routing, context management, and automation planning, not exploit code
+- This is a **runtime/configuration layer**, not a complete attack platform — it provides routing, context management, adapter-based automation, and evidence gates, not hardcoded exploit code
 - Tool availability depends on the user's local MCP/tool inventory
+- Real execution requires explicitly registered scoped adapters; the default executor remains plan-only
 - Red-team mode must be explicitly enabled per session
 - Semantic phase detection is a fallback — rule-first matching is more reliable for well-defined task types
 

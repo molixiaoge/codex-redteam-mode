@@ -12,6 +12,14 @@ from router import select_leaf_skill, select_method, select_router, select_skill
 
 
 class RouterTests(unittest.TestCase):
+    def test_hooks_core_method_engine_imports_directly(self):
+        from hooks.core.method_engine import select_method as hook_select_method
+
+        self.assertEqual(
+            hook_select_method("Build an overall roadmap for this validation", "web", "redteam-light"),
+            "overall-planning",
+        )
+
     def test_auth_pack(self):
         p = "Review Burp JWT login traffic and verify token boundary reuse risks"
         self.assertEqual(select_router(p, "web"), "auth-sec")

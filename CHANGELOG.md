@@ -1,80 +1,108 @@
 # Changelog
 
-All notable changes to **Codex Red Team Opt-In Mode** will be documented in this file.
+All notable changes to the Codex Red Team Opt-In Mode project.
 
----
-## [0.5.0] – 2026-06-14
+The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+
+## [0.6.0] - 2026-06-22
 
 ### Added
-- Dedicated routing layer (`codex/router/`) with regex-based router engine supporting Chinese + English pattern detection, pack selector, leaf selector, and method engine
-- Session patcher system (`codex/session_patcher/`) — two-tier refusal detector (strong phrases + weak sentence-openers in Chinese + English), JSONL session file cleaner with auto-backup, refusal-content replacement with optional AI-powered rewrite
-- Expanded test suite to 7 modules: `test_router`, `test_orchestrator`, `test_automation_tools`, `test_controller`, `test_install`, `test_modes`, `test_session_patcher`
-- Enhanced `scripts/validate.py` with per-subsystem file verification (router, orchestrator, automation, session_patcher)
+- Loop Runtime automation skeleton with `Observe -> Decide -> Act -> Verify -> Record -> Next` flow.
+- `LoopDecision` metadata fields: `trigger`, `feedback_gate`, `exit_condition`, `required_artifact`, `required_capability`, and `selected_tool`.
+- Automation runtime modules: decision tree, loop state, gate engine, rhythm classifier, quick cards, executor adapter layer, loop recorder, and report builder.
+- Registered executor adapters for bounded tool execution. The default executor remains plan-only; explicitly registered adapters can execute scoped steps and return standard `ExecutionResult` objects.
+- Scope-gated runtime execution: tool steps are checked through Tool Registry and Scope Gate before adapter execution.
+- Artifact-driven progression: successful adapter output is saved through `ArtifactStore` and fed back into artifact gates before advancing.
+- Retry handling for retryable adapter failures.
+- Strict `ReportGate` mode covering seven report-readiness gates: core evidence, reproduction, impact proof, multi-ID/parameter check, scope proof, false-positive exclusion, parameter portability, and CIA impact.
+- Controller brief output for `[loop-trigger:]`, `[feedback-gate:]`, and `[exit-condition:]`.
+- Loop runtime tests covering adapter execution, scope blocking, retry, artifact saving, decision logging, and strict report gates.
 
 ### Changed
-- Updated `config.toml`
-- Refined installer with managed manifest tracking, idempotent upgrades, stale legacy path cleanup, and `--uninstall` support
-- Tightened phase-to-method escalation mappings with per-domain defaults
-  
+- Updated README, README_ZH, and instruction profile to describe the current Loop Runtime and adapter-based automation behavior.
+- Updated install validation to require the new automation runtime files.
+- Updated installer version to `0.6.0`.
+- Aligned `config.toml` tool priority with README and template by adding `Current AI Agent`.
+
+### Fixed
+- Restored normal UTF-8 Chinese red-team activation and disable trigger text in `instruction.ctf.md`.
+- Fixed Windows `hooks.json` template path escaping during install.
+- Fixed direct import crash in `hooks/core/method_engine.py` by using the shared router mappings module.
+- Fixed controller phase fallback so summarize/revise/new-objective prompts no longer inherit stale domain phases; only genuine continue prompts preserve the previous phase.
+- Fixed prompt extraction fallback so explicit non-user `system`/`assistant` messages are not treated as user prompts, while role-less legacy messages remain supported.
+- Fixed Scope Gate behavior for scoped tools with a target but no declared `in_scope`; these now return `missing_scope` instead of default allow.
+- Fixed Loop Runtime verification so empty execution results cannot satisfy verification via Python's `all([])` behavior.
+- Added regression coverage for method import, prompt role filtering, phase fallback, missing scope, and empty execution-result verification.
+
+### Notes
+- This release adds a real automation loop runtime and adapter execution path, but it does not hardcode direct shell, scanner, exploit, or network execution. Real tools must be wired through explicit scoped adapters.
+
+## [0.5.0] - 2026-06-14
+
+### Added
+- Dedicated routing layer (`codex/router/`) with regex-based router engine supporting Chinese + English pattern detection, pack selector, leaf selector, and method engine.
+- External skill adapters for ACS, hackskills, and qiushi reference repositories (`codex/router/adapters/`).
+- Fine-grained sub-routers per domain: 5 web sub-routers, 4 AD sub-routers, 6 crypto sub-routers, 5 network protocol sub-routers, and 3 mobile sub-routers.
+- Session patcher system (`codex/session_patcher/`) with two-tier refusal detector, JSONL session file cleaner with auto-backup, refusal-content replacement, and optional AI-powered rewrite.
+- Cross-platform installer launchers: `install.ps1` for Windows PowerShell and `install.sh` for macOS/Linux bash.
+- Templates directory with `hooks.json.template` and `config.toml.example`.
+- Expanded test suite covering router, orchestrator, automation tools, controller, install, modes, and session patcher.
+- Enhanced `scripts/validate.py` with per-subsystem file verification.
+
+### Changed
+- Updated `config.toml` to include `Current AI Agent` as the fifth preferred tool class.
+- Refined installer with managed manifest tracking, idempotent upgrades, stale legacy path cleanup, and `--uninstall` support.
+- Tightened phase-to-method escalation mappings with per-domain defaults.
+- Router now uses dedicated `mappings.py` for all phase-to-router, router-to-pack, and phase-to-method lookups.
+
 ## [0.4.0] - 2026-05-18
 
 ### Changed
-
-- Normalized the GitHub version around the effective `phase -> router -> pack -> leaf` runtime model
-- Reduced method emphasis to a soft hint instead of the primary routing axis
-- Tightened evidence inference to avoid overconfident `confirmed` labels
-- Aligned session-start, runtime, docs, and tests with actual pack-first behavior
+- Normalized the GitHub version around the effective `phase -> router -> pack -> leaf` runtime model.
+- Reduced method emphasis to a soft hint instead of the primary routing axis.
+- Tightened evidence inference to avoid overconfident `confirmed` labels.
+- Aligned session-start, runtime, docs, and tests with actual pack-first behavior.
 
 ### Added
-
-- Expanded domain routing for cloud, container, network, crypto, and mobile scenarios
-- Added dedicated detail packs for recon, API, auth, injection, file, business logic, cloud, container, network, crypto, and mobile
-- Expanded validation coverage for the new routing domains
-- Installer cleanup for known stale legacy runtime paths
-
----
+- Expanded domain routing for cloud, container, network, crypto, and mobile scenarios.
+- Added dedicated detail packs for recon, API, auth, injection, file, business logic, cloud, container, network, crypto, and mobile.
+- Expanded validation coverage for the new routing domains.
+- Installer cleanup for known stale legacy runtime paths.
 
 ## [0.3.0] - 2026-05-14
 
 ### Changed
-
-- Removed methodology layer; subdivided skills for smarter AI behavior during work phases
-- Added semantic judgment as fallback for phase detection
-- Optimized workflow routing based on community feedback
+- Removed methodology layer; subdivided skills for smarter AI behavior during work phases.
+- Added semantic judgment as fallback for phase detection.
+- Optimized workflow routing based on community feedback.
 
 ### Added
-
-- Overlay installation enablement (thanks Nirvana)
-
----
+- Overlay installation enablement. Thanks Nirvana.
 
 ## [0.2.0] - 2026-05-11
 
 ### Added
-
-- Extended router/pack families beyond core phases
-- Initial validation and orchestration gate checks
-- Prompt-chain verification tests
+- Extended router/pack families beyond core phases.
+- Initial validation and orchestration gate checks.
+- Prompt-chain verification tests.
 
 ### Changed
-
-- Improved jailbreak text robustness (thanks PINGS)
-- Refined hook injection to stay lightweight
-
----
+- Improved jailbreak text robustness. Thanks PINGS.
+- Refined hook injection to stay lightweight.
 
 ## [0.1.0] - 2026-05-07
 
 ### Added
+- Initial release offering `normal`, `redteam-light`, and `redteam-full` modes.
+- Structured JSON runtime state with session isolation.
+- Rule-first phase detection with semantic fallback.
+- Pack-first routing mainline: `phase -> router -> pack -> leaf`.
+- Core phase coverage spanning web, AD, post-exploitation, reverse engineering, code-audit, payload, and evasion.
+- Managed incremental installer for Python and PowerShell.
+- Reference method layer and technology routing layer from three external skill repositories.
 
-- Initial release with opt-in Red Team Mode (`normal` / `redteam-light` / `redteam-full`)
-- Structured JSON runtime state with session isolation
-- Rule-first phase detection with semantic fallback
-- Pack-first routing mainline: `phase -> router -> pack -> leaf`
-- Core phase coverage: web, ad, postex, reverse, code-audit, payload, evasion
-- Managed incremental installer (Python, PowerShell)
-- Reference method layer and technology routing layer from `qiushi-skill`, `yaklang/hack-skills`, and `mukul975/Anthropic-Cybersecurity-Skills`
-
+[0.6.0]: https://github.com/chAng-L19/codex-redteam-mode/releases/tag/v0.6.0
+[0.5.0]: https://github.com/chAng-L19/codex-redteam-mode/releases/tag/v0.5.0
 [0.4.0]: https://github.com/chAng-L19/codex-redteam-mode/releases/tag/v0.4.0
 [0.3.0]: https://github.com/chAng-L19/codex-redteam-mode/releases/tag/v0.3.0
 [0.2.0]: https://github.com/chAng-L19/codex-redteam-mode/releases/tag/v0.2.0
