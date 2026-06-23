@@ -1,1 +1,0 @@
-# Routing Layer\n\nEffective runtime order:\n\n```text\nphase -> router -> pack -> leaf\n```\n\n`method` is a soft hint, not the primary routing axis.

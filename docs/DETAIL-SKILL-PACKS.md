@@ -1,1 +1,0 @@
-# Detail Skill Packs\n\nThis repository ships compact detail packs for concrete downstream skill hits instead of heavy abstract doctrine.
