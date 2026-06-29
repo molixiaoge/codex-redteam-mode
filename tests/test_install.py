@@ -12,4 +12,25 @@ class InstallTests(unittest.TestCase):
             subprocess.run(cmd, check=True); subprocess.run(cmd, check=True)
             merged=(codex_home/'AGENTS.md').read_text(encoding='utf-8'); self.assertIn('keep my custom rules', merged); self.assertEqual(1, merged.count('codex-redteam-optin-mode:start'))
             hooks=json.loads((codex_home/'hooks.json').read_text(encoding='utf-8')); statuses=[hook.get('statusMessage') for entries in hooks.get('hooks',{}).values() for entry in entries for hook in entry.get('hooks',[])]; self.assertIn('User custom hook', statuses); self.assertEqual(1, statuses.count('Loading session mode context')); self.assertEqual(1, statuses.count('Checking mode-gated offensive routing'))
+            self.assertFalse(any(codex_home.rglob('*.pyc')))
+            self.assertFalse(any(path.name == '__pycache__' for path in codex_home.rglob('__pycache__')))
+
+    def test_dry_run_does_not_write_and_uninstall_preserves_user_files(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base=Path(tmp); codex_home=base/'codex-home'; agents_home=base/'agents-home'; codex_home.mkdir(parents=True); agents_home.mkdir(parents=True)
+            (codex_home/'AGENTS.md').write_text('# User AGENTS\n\n- keep this after uninstall\n', encoding='utf-8')
+            (codex_home/'hooks.json').write_text(json.dumps({'hooks':{'UserPromptSubmit':[{'hooks':[{'type':'command','command':'python custom_hook.py','statusMessage':'User custom hook','timeout':10}]}]}}, ensure_ascii=False, indent=2), encoding='utf-8')
+            cmd=[sys.executable, str(INSTALL), '--codex-home', str(codex_home), '--agents-home', str(agents_home)]
+            subprocess.run([*cmd, '--dry-run'], check=True)
+            self.assertFalse((codex_home/'redteam-install-manifest.json').exists())
+            self.assertFalse((codex_home/'hooks'/'core').exists())
+            subprocess.run(cmd, check=True)
+            subprocess.run([*cmd, '--uninstall'], check=True)
+            self.assertFalse((codex_home/'redteam-install-manifest.json').exists())
+            self.assertFalse((codex_home/'hooks'/'core').exists())
+            self.assertFalse((agents_home/'skills'/'redteam-recon-intake').exists())
+            self.assertIn('keep this after uninstall', (codex_home/'AGENTS.md').read_text(encoding='utf-8'))
+            hooks=json.loads((codex_home/'hooks.json').read_text(encoding='utf-8'))
+            statuses=[hook.get('statusMessage') for entries in hooks.get('hooks',{}).values() for entry in entries for hook in entry.get('hooks',[])]
+            self.assertEqual(['User custom hook'], statuses)
 if __name__=='__main__': unittest.main()

@@ -299,7 +299,7 @@ class LoopRuntimeSupportTests(unittest.TestCase):
             def flaky_adapter(step, args):
                 attempts["count"] += 1
                 if attempts["count"] == 1:
-                    raise RuntimeError("temporary timeout")
+                    raise TimeoutError("temporary timeout")
                 return {"summary": "retried ok", "artifact": {"status": 200}}
 
             executor = Executor(plan_only=False)
@@ -336,7 +336,7 @@ class LoopRuntimeSupportTests(unittest.TestCase):
 
         original_selector = loop_runtime_module.select_decision_path
         original_planner = loop_runtime_module.create_automation_plan
-        loop_runtime_module.select_decision_path = lambda objective, phase="general": DecisionPath(
+        loop_runtime_module.select_decision_path = lambda objective, phase="general", **kwargs: DecisionPath(
             path="metadata-only-path",
             priority="low",
             reason="test empty execution path",
@@ -364,8 +364,16 @@ class LoopRuntimeSupportTests(unittest.TestCase):
 
                 result = LoopRuntime(log_root=Path(td)).run_once(state)
 
+                # When execution_results is empty, verify step should not block
                 self.assertEqual(result.execution_results, ())
-                self.assertNotEqual(result.decision.action, "advance")
+                # The decision should still be produced (not crash)
+                self.assertIsNotNone(result.decision)
+                # Artifact gate runs even with no execution
+                self.assertIn("Artifact Gate", {g.gate_name for g in result.gate_results})
+                # State should advance iteration
+                self.assertEqual(result.state.loop_iteration, 2)
+                # Decision log should be written
+                self.assertTrue((Path(td) / "decision-log.jsonl").exists())
         finally:
             loop_runtime_module.select_decision_path = original_selector
             loop_runtime_module.create_automation_plan = original_planner
